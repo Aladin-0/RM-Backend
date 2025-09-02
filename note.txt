@@ -1,0 +1,12 @@
+-for run server          :daphne restromanager.asgi:application
+-for runing socet server :redis-server --port 6380
+
+- remaining 
+            [Login Api's 
+             - Admin
+             - Captain
+             - Cashier ]
+-command : 
+         i see it listed all the apis but where is login api becouse frontend team creating ui for admin login and cashier , chef ,captain . 
+
+-api documentationn : http://127.0.0.1:8000/api/docs/#/
