@@ -77,12 +77,17 @@ class CashierBillSerializer(serializers.ModelSerializer):
         # This method calculates the total price by summing up all items
         return sum(item.variant.price * item.quantity for item in bill.order_items.all())
 
+class MenuItemVariantWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuItemVariant
+        fields = ['variant_name', 'price', 'preparation_time']
+
 class MenuItemManageSerializer(serializers.ModelSerializer):
     """
     Serializer for the Restaurant Admin to manage their menu items.
     """
-    # We include the variants for detailed viewing
-    variants = MenuItemVariantSerializer(many=True, read_only=True)
+    # We include the variants for detailed viewing and writing
+    variants = MenuItemVariantWriteSerializer(many=True, required=False)
 
     class Meta:
         model = MenuItem
@@ -92,6 +97,41 @@ class MenuItemManageSerializer(serializers.ModelSerializer):
             'food_types', 'cuisines', 'variants'
         ]
         read_only_fields = ['id'] # The ID cannot be edited
+        
+    def create(self, validated_data):
+        variants_data = validated_data.pop('variants', [])
+        menu_item = MenuItem.objects.create(**validated_data)
+        
+        # Create variants for the menu item
+        for variant_data in variants_data:
+            MenuItemVariant.objects.create(menu_item=menu_item, **variant_data)
+            
+        return menu_item
+        
+    def update(self, instance, validated_data):
+        variants_data = validated_data.pop('variants', [])
+        
+        # Update the menu item fields
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get('description', instance.description)
+        instance.category = validated_data.get('category', instance.category)
+        instance.is_available = validated_data.get('is_available', instance.is_available)
+        
+        # Handle many-to-many relationships
+        if 'food_types' in validated_data:
+            instance.food_types.set(validated_data.get('food_types'))
+        if 'cuisines' in validated_data:
+            instance.cuisines.set(validated_data.get('cuisines'))
+            
+        instance.save()
+        
+        # If variants are provided, replace the existing ones
+        if variants_data:
+            instance.variants.all().delete()
+            for variant_data in variants_data:
+                MenuItemVariant.objects.create(menu_item=instance, **variant_data)
+                
+        return instance
 
 class PublicMenuItemVariantSerializer(serializers.ModelSerializer):
     class Meta:

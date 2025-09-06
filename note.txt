@@ -1,5 +1,5 @@
--for run server          :daphne restromanager.asgi:application
--for runing socet server :redis-server --port 6380
+-for run python server          :daphne restromanager.asgi:application
+-for runing socket server :redis-server --port 6380
 
 - remaining 
             [Login Api's 

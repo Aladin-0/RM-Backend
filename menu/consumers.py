@@ -22,6 +22,23 @@ class ChefConsumer(AsyncWebsocketConsumer):
         order_data = event['data']
         # Send the order data to the connected client (the chef's browser)
         await self.send(text_data=json.dumps(order_data))
+        
+class CashierConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.restaurant_slug = self.scope['url_route']['kwargs']['restaurant_slug']
+        self.group_name = f'cashier_notifications_{self.restaurant_slug}'
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    # This method is called when an order is ready for payment
+    async def order_ready_for_payment(self, event):
+        order_data = event['data']
+        # Send the order data to the connected client (the cashier's browser)
+        await self.send(text_data=json.dumps(order_data))
 
 
 class CustomerConsumer(AsyncWebsocketConsumer):

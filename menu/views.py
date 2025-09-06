@@ -129,6 +129,46 @@ class ChefOrderItemUpdateView(APIView):
                     'data': customer_message
                 }
             )
+            
+            # Check if this is the last item in the order to be marked as COMPLETED
+            if new_status == OrderItem.OrderStatus.COMPLETED:
+                # Get all items in this bill
+                bill_items = OrderItem.objects.filter(bill=order_item.bill)
+                # Check if all items are now completed
+                all_completed = all(item.status == OrderItem.OrderStatus.COMPLETED for item in bill_items)
+                
+                if all_completed:
+                    # Prepare data for cashier notification
+                    bill = order_item.bill
+                    restaurant = bill.restaurant
+                    
+                    # Calculate total amount
+                    total_amount = sum(item.variant.price * item.quantity for item in bill_items)
+                    
+                    # Format items for the cashier
+                    items_data = [{
+                        'name': item.variant.menu_item.name,
+                        'variant_name': item.variant.variant_name,
+                        'quantity': item.quantity,
+                        'price': float(item.variant.price)
+                    } for item in bill_items]
+                    
+                    # Prepare the message
+                    cashier_message = {
+                        'id': bill.id,
+                        'table_number': bill.table_number,
+                        'totalAmount': float(total_amount),
+                        'items': items_data
+                    }
+                    
+                    # Send notification to cashier
+                    async_to_sync(channel_layer.group_send)(
+                        f'cashier_notifications_{restaurant.slug}',
+                        {
+                            'type': 'order_ready_for_payment',
+                            'data': cashier_message
+                        }
+                    )
         except Exception as e:
             # Log the error but continue with the response
             print(f"WebSocket notification error: {e}")
